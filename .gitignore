@@ -1,0 +1,159 @@
+# ===================================
+# Python / Django Backend
+# ===================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+.env/
+venv/
+ENV/
+env/
+.venv
+
+# Django
+*.log
+*.pot
+*.pyc
+db.sqlite3
+db.sqlite3-journal
+/media
+/staticfiles
+/static
+
+# Environment variables
+.env
+.env.local
+.env.prod
+.env.production
+.env.development
+*.env
+!.env.example
+**/.env
+**/backend/.env
+**/backend/src/.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# ===================================
+# Node.js / Next.js Frontend
+# ===================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+/build
+/.next/
+/out/
+
+# Testing
+coverage/
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# Typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# ===================================
+# Project Specific
+# ===================================
+
+# Ollama / LLM
+*.gguf
+models/
+
+# ChromaDB
+chroma_data/
+chromadb_data/
+*.chroma
+
+# Logs
+logs/
+*.log
+django.log
+
+# Uploads
+uploads/
+Media/
+media/
+
+# Postgres data
+postgres-data/
+
+# Backup files
+*.bak
+*.backup
+*.sql
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.cert
+*.crt
+
+# SSL Certificates
+ssl/
+*.csr
+
+# Nginx config (use nginx.conf.example as template)
+nginx.conf
+
+# Documentation builds
+docs/_build/
+site/

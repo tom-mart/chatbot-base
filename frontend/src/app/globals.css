@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  /* Fade in animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+  }
+
+  /* Slide up animation for PWA install prompt */
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Mobile-optimized touch targets */
+  @media (max-width: 768px) {
+    .btn {
+      min-height: 44px;
+    }
+    
+    .input {
+      min-height: 44px;
+    }
+  }
+
+  /* PWA safe area support */
+  @supports (padding: max(0px)) {
+    body {
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+    
+    .pb-safe {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+  }
+  
+  /* Fallback for browsers without safe-area support */
+  .pb-safe {
+    padding-bottom: 1rem;
+  }
+
+  /* Improved focus states for accessibility */
+  .btn:focus-visible,
+  .input:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}

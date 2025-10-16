@@ -1,0 +1,232 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: lifepal_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lifepal
+      POSTGRES_USER: lifepal
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - lifepal_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifepal"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: lifepal_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lifepal_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ChromaDB Vector Database
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: lifepal_chromadb
+    restart: unless-stopped
+    ports:
+      - "8010:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    networks:
+      - lifepal_network
+
+  # Django Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: lifepal-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DEBUG=False
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DATABASE_URL=postgresql://lifepal:${DB_PASSWORD:-changeme}@db:5432/lifepal
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=lifepal
+      - DB_USER=lifepal
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - USE_DOCKER_CHROMADB=true
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+      - DJANGO_SUPERUSER_USERNAME=azkeel
+      - DJANGO_SUPERUSER_EMAIL=azkeel@lifepal.app
+      - DJANGO_SUPERUSER_PASSWORD=insane5276
+      - MEDIA_ROOT=/app/media
+    volumes:
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+      - chromadb_data:/app/chromadb_data
+    ports:
+      - "8001:8000"
+    networks:
+      - lifepal_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - NEXT_PUBLIC_API_URL=
+        - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+    container_name: lifepal_frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+    ports:
+      - "3001:3000"
+    networks:
+      - lifepal_network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://0.0.0.0:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lifepal_celery_worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgresql://lifepal:${DB_PASSWORD:-changeme}@db:5432/lifepal
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://192.168.1.21:11434}
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-llama3.2:latest}
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-this-in-production}
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
+      - MEDIA_ROOT=/app/media
+    volumes:
+      - media_files:/app/media
+      - chromadb_data:/app/chromadb_data
+    networks:
+      - lifepal_network
+    depends_on:
+      - db
+      - redis
+      - backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: celery -A core worker --loglevel=info
+
+  # Celery Beat Scheduler
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lifepal_celery_beat
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgresql://lifepal:${DB_PASSWORD:-changeme}@db:5432/lifepal
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://192.168.1.21:11434}
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-llama3.2:latest}
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-this-in-production}
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
+      - MEDIA_ROOT=/app/media
+    volumes:
+      - media_files:/app/media
+      - chromadb_data:/app/chromadb_data
+    networks:
+      - lifepal_network
+    depends_on:
+      - db
+      - redis
+      - backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: celery -A core beat --loglevel=info
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: lifepal_nginx
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+      - "8443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - static_files:/var/www/static:ro
+      - media_files:/var/www/media:ro
+    networks:
+      - lifepal_network
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  chromadb_data:
+    driver: local
+  media_files:
+    driver: local
+  static_files:
+    driver: local
+
+networks:
+  lifepal_network:
+    driver: bridge
